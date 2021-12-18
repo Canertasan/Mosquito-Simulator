@@ -160,7 +160,7 @@ class ReactiveAABB(AABB):
 
 class Material:
     def __init__(self, name):
-        self.properties = dict()
+        self.properties = {}
         self.name = name
         self.Ka = glm.vec3(0.0)
         self.Kd = glm.vec3(0.0)
