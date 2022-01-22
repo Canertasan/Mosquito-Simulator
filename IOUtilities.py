@@ -29,10 +29,7 @@ def load_image_to_texture(image_file_name, mag_filter=gl.GL_LINEAR, min_filter=g
     gl.glTexParameterf(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, min_filter)
 
     # Check if the texture has an Alpha (transparency) chanel or not. It won't work properly with the wrong type.
-    if image.mode == "RGBA":
-        image_type = gl.GL_RGBA
-    else:
-        image_type = gl.GL_RGB
+    image_type = gl.GL_RGBA if image.mode == "RGBA" else gl.GL_RGB
     # Send the image data to be used as texture
     gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, image.size[0], image.size[1], 0, image_type, gl.GL_UNSIGNED_BYTE, image_data)
 
@@ -72,10 +69,7 @@ def load_images_to_cubemap_texture(
         image_data = np.array(image.getdata(), dtype=np.uint8)
 
         # Check if the texture has an Alpha (transparency) chanel or not. It won't work properly with the wrong type.
-        if image.mode == "RGBA":
-            image_type = gl.GL_RGBA
-        else:
-            image_type = gl.GL_RGB
+        image_type = gl.GL_RGBA if image.mode == "RGBA" else gl.GL_RGB
         # Send the image data to be used as texture
         gl.glTexImage2D(first_cubemap_texture_position, 0, gl.GL_RGBA, image.size[0], image.size[1], 0, image_type, gl.GL_UNSIGNED_BYTE, image_data)
 
@@ -185,10 +179,10 @@ def parse_obj_file(obj_file_name) -> ParsedObjData:
             if len(tokens) <= 1 or tokens[0] == '#':
                 continue
 
-            if len(tokens) == 0 or tokens[0] == "#":
+            if len(tokens) == 0:
                 continue
 
-            elif tokens[0] == "o" or tokens[0] == "g":
+            elif tokens[0] in ["o", "g"]:
                 current_mesh_name = "unnamed" if len(tokens) == 1 else tokens[1]
 
             elif tokens[0] == "v":
@@ -201,20 +195,14 @@ def parse_obj_file(obj_file_name) -> ParsedObjData:
                 normals.append(tuple(map(float, tokens[1:])))
 
             elif tokens[0] == "f":
-                vertices = []
-                for vertex in tokens[1:]:
-                    vertices.append(tuple(map(int, vertex.split("/"))))
-
+                vertices = [tuple(map(int, vertex.split("/"))) for vertex in tokens[1:]]
                 for i in range(2, len(vertices)):
                     faces.append(vertices[0])
                     faces.append(vertices[i - 1])
                     faces.append(vertices[i])
 
             elif tokens[0] == "usemtl":
-                if current_material is None:
-                    current_material = materials[tokens[1]]
-
-                else:
+                if current_material is not None:
                     meshes.append(
                         ParsedMesh(
                             current_mesh_name,
@@ -223,8 +211,9 @@ def parse_obj_file(obj_file_name) -> ParsedObjData:
                         )
                     )
 
-                    current_material = materials[tokens[1]]
                     faces = []
+
+                current_material = materials[tokens[1]]
 
             elif tokens[0] == "mtllib":
                 materials.update(parse_material_file(tokens[1], obj_file_path))
@@ -266,10 +255,7 @@ def parse_obj_file(obj_file_name) -> ParsedObjData:
 
     # Create meshes with element indexing
     for mesh in meshes:
-        formatted_indices = []
-        for vertex in mesh.vertex_indices:
-            formatted_indices.append(unique_vertices[vertex])
-
+        formatted_indices = [unique_vertices[vertex] for vertex in mesh.vertex_indices]
         formatted_meshes.append(
             ParsedMesh(mesh.name, mesh.material, formatted_indices)
         )
@@ -426,19 +412,14 @@ def bind_mesh_data(obj_data: ParsedObjData) -> ObjData:
     )
 
     # Create the element buffers for each mesh
-    meshes = []
-
-    for mesh in obj_data.meshes:
-        meshes.append(
-            Mesh(
+    meshes = [Mesh(
                 mesh.name,
                 bind_material_textures(mesh.material),
                 send_indices_to_element_buffer(
                     mesh.vertex_indices
                 ),
                 len(mesh.vertex_indices)
-            )
-        )
+            ) for mesh in obj_data.meshes]
 
     # Bind Vertex Array to 0 (default) to keep the state clear
     gl.glBindVertexArray(0)
